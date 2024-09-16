@@ -103,34 +103,12 @@ for(i in 1 : iter){
 save(normal, lts, M, skewnormal, NSNSM, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/models.Rdata")
 save(beta_normal, beta_lts, beta_M, beta_skewnormal, beta_NSNSM, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/beta_models.Rdata")
 
-# NGSM
-load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/Simulation/n=100/censoring 0%/NGSM1.Rdata")
-
-NGSM = list()
-beta_NGSM = list()
-
-iter = 200
-for(i in 1:200){
-
-	x = X[[i]]
-	y = logT[[i]]
-
-	NGSM[[i]] = AFT_NGSM(x, y, simulation_index = i)
-
-	beta_NGSM[[i]]  = NGSM[[i]][[1]]
-
-	print(i)
-}
-
-save(NGSM, beta_NGSM, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/NGSM1.Rdata")
-
 ######################################
 #MSE
 beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
 L2_normal = beta_hat
 L2_lts = beta_hat
 L2_skewnormal = beta_hat
-L2_NGSM = beta_hat
 L2_NSNSM = beta_hat
 L2_M = beta_hat
 
@@ -154,7 +132,6 @@ apply(L2_NSNSM, 2, mean)
 #Bias
 bias_normal = beta_hat
 bias_skewnormal = beta_hat
-bias_NGSM = beta_hat
 bias_NSNSM = beta_hat
 bias_lts = beta_hat
 bias_M = beta_hat
@@ -365,27 +342,6 @@ for(i in 1 : iter){
 save(normal3, lts3, M3, skewnormal3, NSNSM3, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/models3.Rdata")
 save(beta_normal3, beta_lts3, beta_M3, beta_skewnormal3, beta_NSNSM3, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/beta_models3.Rdata")
 
-# NGSM
-load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/Simulation/n=100/censoring 0%/NGSM3.Rdata")
-
-NGSM3 = list()
-beta_NGSM3 = list()
-
-iter = 200
-for(i in 1 : iter){
-
-	x = X3[[i]]
-	y = logT3[[i]]
-
-	NGSM3[[i]] = AFT_NGSM(x, y, simulation_index = i)
-
-	beta_NGSM3[[i]]  = NGSM3[[i]][[1]]
-
-	print(i)
-}
-
-save(NGSM3, beta_NGSM3, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/NGSM3.Rdata")
-
 ######################################
 #MSE
 beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
@@ -509,27 +465,6 @@ for(i in 1 : iter){
 save(normal4, lts4, M4, skewnormal4, NSNSM4, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/models4.Rdata")
 save(beta_normal4, beta_lts4, beta_M4, beta_skewnormal4, beta_NSNSM4, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/beta_models4.Rdata")
 
-# NGSM
-load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/Simulation/n=100/censoring 0%/NGSM4.Rdata")
-
-NGSM4 = list()
-beta_NGSM4 = list()
-
-iter = 200
-for(i in 1 : iter){
-
-	x = X4[[i]]
-	y = logT4[[i]]
-
-	NGSM4[[i]] = AFT_NGSM(x, y, simulation_index = i)
-
-	beta_NGSM4[[i]]  = NGSM4[[i]][[1]]
-
-	print(i)
-}
-
-save(NGSM4, beta_NGSM4, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/NGSM4.Rdata")
-
 ######################################
 #MSE
 beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
@@ -646,26 +581,6 @@ for(i in 1 : iter){
 save(normal5, lts5, M5, skewnormal5, NSNSM5, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/models5.Rdata")
 save(beta_normal5, beta_lts5, beta_M5, beta_skewnormal5, beta_NSNSM5, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/beta_models5.Rdata")
 
-# NGSM
-load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/Simulation/n=100/censoring 0%/NGSM5.Rdata")
-
-NGSM5 = list()
-beta_NGSM5 = list()
-
-iter = 200
-for(i in 1 : iter){
-
-	x = X5[[i]]
-	y = logT5[[i]]
-
-	NGSM5[[i]] = AFT_NGSM(x, y, simulation_index = i)
-
-	beta_NGSM5[[i]]  = NGSM5[[i]][[1]]
-
-	print(i)
-}
-
-save(NGSM5, beta_NGSM5, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=100/censoring 0_/NGSM5.Rdata")
 
 ######################################
 #MSE
