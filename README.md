@@ -1,0 +1,3 @@
+# Robust (Robust regressions with nonparametric maximum likelihood estimator)
+The ordinary least squares (OLS) method is commonly used for estimating regression coefficients for the linear regression. 
+However, this approach is highly sensitive to influential outliers and loses efficiency when the error follows a skewed or heavy-tailed distribution. To address these limitations, we propose using a nonparametric maximum likelihood estimator for the scale factor in skew-normal scale mixture in order to mitigate the risk of misspecification issues and produce robust estimators without any model selection procedure. 
