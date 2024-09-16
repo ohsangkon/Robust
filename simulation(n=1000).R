@@ -1,0 +1,790 @@
+#####################################################################################
+################## simulation ###########################################
+######################################################################################
+library(tidyverse)
+library(sn)
+library(nnls)
+library(latex2exp)
+library(e1071)
+library(survival)
+library(MASS)  # M-estimate, rlm function
+library(robustbase) #lts, ltsReg function
+
+options(scipen = 100)
+######################################################################################
+iter = 200
+n_sample = 1000
+beta_true = c(2, 1, -1) 
+
+
+##########################################################################
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models.Rdata") 
+
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models2.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models2.Rdata")
+
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models3.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models3.Rdata")
+
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models4.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models4.Rdata")
+
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models5.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models5.Rdata")
+
+
+
+######################################################################################
+## Assumption1. logT ~ Skewt(xi = 0, sigma = 1, lambda = 10, nu = 3)
+######################################################################################
+#### Generate Data #################################
+###################################################
+X = list()
+logT = list()  # True log survival time
+logY = list()  # Observed log survival time
+delta = list() # delta = 1: observed, delta = 0: censored
+Eps_true = list()
+Eps_true_mean = list()
+
+set.seed(1234)
+for(i in 1 : iter){
+
+	# Covariate
+		X_1 = rnorm(n_sample, 0, 1)
+		X_2 = rbinom(n_sample, 1, 0.5)
+		X[[i]] = cbind(X_1, X_2)
+		
+	#True logT
+		Eps_true[[i]] = rst(n_sample, xi = 0, omega = 1, alpha = 5, nu = 3)
+		Eps_true_mean[[i]] = mean(Eps_true[[i]])
+		Eps_true[[i]] = (Eps_true[[i]] - mean(Eps_true[[i]]))/sd(Eps_true[[i]])
+
+	   design.X = cbind(1, X[[i]])
+		logT[[i]] = (design.X %*% beta_true) + Eps_true[[i]]
+
+}
+#par(mfrow = c(1,2))
+hist(Eps_true[[1]])
+abline(v = mean(Eps_true[[1]]), col = "red")
+
+####################################
+### Results #######################
+# Model: 1)Normal, 2) lts, 3) M-estimate 4) NSNSM
+###################################
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models.Rdata")
+
+normal = list()     ; beta_normal = list()
+lts = list()	   ; beta_lts = list()
+M = list() ; beta_M = list()
+skewnormal = list() ; beta_skewnormal = list()
+NSNSM = list()      ;  beta_NSNSM = list()
+
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X[[i]]
+	y = logT[[i]]
+
+	normal[[i]] = lm(y ~ x)
+	lts[[i]] = ltsReg(y ~ x, alpha = 0.8)
+	M[[i]]			= 	rlm(y ~ x, method = "M")
+	skewnormal[[i]] = AFT_SN(x = x, y = y)
+	NSNSM[[i]] = AFT_NSNSM(x, y, simulation_index = i)
+
+	beta_normal[[i]]  = normal[[i]]$coefficients %>% unname()
+	beta_lts[[i]]  = lts[[i]]$coefficients %>% unname()
+	beta_M[[i]] = M[[i]]$coefficients %>% unname()
+	beta_skewnormal[[i]]  = skewnormal[[i]][[1]]
+	beta_NSNSM[[i]]  = NSNSM[[i]][[1]]
+
+	print(i)
+}
+
+save(normal, lts, M, skewnormal, NSNSM, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models.Rdata")
+save(beta_normal, beta_lts, beta_M, beta_skewnormal, beta_NSNSM, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models.Rdata")
+
+#### epsilon plot 
+
+density_ssnsm(model = NSNSM[[100]], true_epsilon = Eps_true[[100]], ylim = c(0, 0.76),
+					xlab = TeX(r"($\epsilon$)"))
+
+density_norm = dnorm(seq(-20,20,length = 1000), mean = 0, sd = sigma(normal[[100]]))
+lines(seq(-20,20,length = 1000), density_norm, lwd = 3, lty = 3, col = "black")
+
+legend("topright", legend = c("OLS", "SSNSM"), lty = c(3,1), col = c("black", "red"), cex = 1.5)
+
+
+
+# NGSM
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/Simulation/n=1000/censoring 0%/NGSM1.Rdata")
+
+NGSM = list()
+beta_NGSM = list()
+
+iter = 200
+for(i in 1:iter){
+
+	x = X[[i]]
+	y = logT[[i]]
+
+	NGSM[[i]] = AFT_NGSM(x, y, simulation_index = i)
+
+	beta_NGSM[[i]]  = NGSM[[i]][[1]]
+
+	print(i)
+}
+
+save(NGSM, beta_NGSM, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/NGSM1.Rdata")
+
+######################################
+#MSE
+beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
+L2_normal = beta_hat
+L2_lts = beta_hat
+L2_skewnormal = beta_hat
+L2_NGSM = beta_hat
+L2_NSNSM = beta_hat
+L2_M = beta_hat
+
+range= 1:iter
+for(i in 1:iter){
+	L2_normal[i,] = ((beta_true - beta_normal[[i]])^2)
+	L2_lts[i,] = ((beta_true - beta_lts[[i]])^2)
+	L2_skewnormal[i,] = ((beta_true - beta_skewnormal[[i]])^2)
+	L2_NSNSM[i,] = ((beta_true - beta_NSNSM[[i]])^2)
+	L2_M[i,] = ((beta_true - beta_M[[i]])^2)
+
+}
+
+apply(L2_normal, 2, mean)
+apply(L2_lts, 2, mean)
+apply(L2_M, 2, mean)
+apply(L2_skewnormal, 2, mean)
+apply(L2_NSNSM, 2, mean)
+
+
+#Bias
+bias_normal = beta_hat
+bias_skewnormal = beta_hat
+bias_NGSM = beta_hat
+bias_NSNSM = beta_hat
+bias_lts = beta_hat
+bias_M = beta_hat
+for(i in 1:iter){
+
+	bias_normal[i,] = beta_normal[[i]]
+	bias_lts[i,] = beta_lts[[i]]
+	bias_skewnormal[i,] = beta_skewnormal[[i]]
+	bias_NSNSM[i,] = beta_NSNSM[[i]]
+	bias_M[i,] = beta_M[[i]]
+
+}
+
+apply(bias_normal,2,mean) - beta_true
+apply(bias_lts,2,mean) - beta_true
+apply(bias_M,2,mean) - beta_true
+apply(bias_skewnormal,2,mean) - beta_true
+apply(bias_NSNSM,2,mean) - beta_true
+
+
+######################################################################################
+## Assumption2. logT ~ SkewNormal(xi = 0, sigma = 1, lambda = -5)
+######################################################################################
+#### Generate Data #################################
+###################################################
+X2 = list()
+logT2 = list()  # True log survival time
+logY2 = list()  # Observed log survival time
+delta2 = list() # delta = 1: observed, delta = 0: censored
+Eps_true2 = list()
+Eps_true2_mean = list()
+
+set.seed(530)
+for(i in 1 : iter){
+
+	# Covariate
+		X_1 = rnorm(n_sample, 0, 1)
+		X_2 = rbinom(n_sample, 1, 0.5)
+		X2[[i]] = cbind(X_1, X_2)
+		
+	#True logT
+		Eps_true2[[i]] = rsn(n_sample, xi = 0, omega = 1, alpha = -5)
+		Eps_true2_mean[[i]] = mean(Eps_true2[[i]])
+		Eps_true2[[i]] = (Eps_true2[[i]] - mean(Eps_true2[[i]]))/sd(Eps_true2[[i]])
+
+	   design.X = cbind(1, X2[[i]])
+		logT2[[i]] = (design.X %*% beta_true) + Eps_true2[[i]]
+
+}
+#par(mfrow = c(1,2))
+hist(Eps_true2[[1]])
+abline(v = mean(Eps_true2[[1]]), col = "red")
+
+
+####################################
+### Results #######################
+###################################
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models2.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models2.Rdata")
+
+normal2 = list()     ; beta_normal2 = list()
+lts2 = list()	   ; beta_lts2 = list()
+M2 = list() ; beta_M2 = list()
+skewnormal2 = list() ; beta_skewnormal2 = list()
+NSNSM2 = list()      ;  beta_NSNSM2 = list()
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X2[[i]]
+	y = logT2[[i]]
+
+	normal2[[i]] = lm(y ~ x)
+	lts2[[i]] = ltsReg(y ~ x, alpha = 0.8)
+	M2[[i]]			= 	rlm(y ~ x, method = "M")
+	skewnormal2[[i]] = AFT_SN(x = x, y = y)
+	NSNSM2[[i]] = AFT_NSNSM(x, y, simulation_index = i)
+
+	beta_normal2[[i]]  = normal2[[i]]$coefficients %>% unname()
+	beta_lts2[[i]]  = lts2[[i]]$coefficients %>% unname()
+	beta_M2[[i]] = M2[[i]]$coefficients %>% unname()
+	beta_skewnormal2[[i]]  = skewnormal2[[i]][[1]]
+	beta_NSNSM2[[i]]  = NSNSM2[[i]][[1]]
+
+
+	print(i)
+}
+
+save(normal2, lts2, M2, skewnormal2, NSNSM2, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models2.Rdata")
+save(beta_normal2, beta_lts2, beta_M2, beta_skewnormal2, beta_NSNSM2, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models2.Rdata")
+
+#### epsilon plot 
+
+density_ssnsm(model = NSNSM2[[120]], true_epsilon = Eps_true2[[120]], ylim = c(0, 0.5),
+					xlab = TeX(r"($\epsilon$)"))
+
+density_norm = dnorm(seq(-20,20,length = 1000), mean = 0, sd = sigma(normal2[[120]]))
+lines(seq(-20,20,length = 1000), density_norm, lwd = 3, lty = 3, col = "black")
+
+legend("topleft", legend = c("OLS", "SSNSM"), lty = c(3,1), col = c("black", "red"), cex = 1.5)
+
+
+######################################
+#MSE
+beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
+L2_normal2 = beta_hat
+L2_lts2 = beta_hat
+L2_skewnormal2 = beta_hat
+L2_NSNSM2 = beta_hat
+L2_M2 = beta_hat
+
+range= 1:iter
+for(i in 1:iter){
+	L2_normal2[i,] = ((beta_true - beta_normal2[[i]])^2)
+	L2_lts2[i,] = ((beta_true - beta_lts2[[i]])^2)
+	L2_skewnormal2[i,] = ((beta_true - beta_skewnormal2[[i]])^2)
+	L2_NSNSM2[i,] = ((beta_true - beta_NSNSM2[[i]])^2)
+	L2_M2[i,] = ((beta_true - beta_M2[[i]])^2)
+
+}
+
+apply(L2_normal2, 2, mean)
+apply(L2_lts2, 2, mean)
+apply(L2_M2, 2, mean)
+apply(L2_skewnormal2, 2, mean)
+apply(L2_NSNSM2, 2, mean)
+
+
+#Bias
+bias_normal2 = beta_hat
+bias_skewnormal2 = beta_hat
+bias_NGSM2 = beta_hat
+bias_NSNSM2 = beta_hat
+bias_lts2 = beta_hat
+bias_M2 = beta_hat
+for(i in 1:iter){
+
+	bias_normal2[i,] = beta_normal2[[i]]
+	bias_lts2[i,] = beta_lts2[[i]]
+	bias_skewnormal2[i,] = beta_skewnormal2[[i]]
+	bias_NSNSM2[i,] = beta_NSNSM2[[i]]
+	bias_M2[i,] = beta_M2[[i]]
+
+}
+
+apply(bias_normal2,2,mean) - beta_true
+apply(bias_lts2,2,mean) - beta_true
+apply(bias_M2,2,mean) - beta_true
+apply(bias_skewnormal2,2,mean) - beta_true
+apply(bias_NSNSM2,2,mean) - beta_true
+
+###########################################################
+######################################################################################
+## Assumption3. logT ~ Normal(mean = 0, sd = 1)
+######################################################################################
+#### Generate Data #################################
+###################################################
+X3 = list()
+logT3 = list()  # True log survival time
+logY3 = list()  # Observed log survival time
+delta3 = list() # delta = 1: observed, delta = 0: censored
+Eps_true3 = list()
+
+set.seed(530)
+for(i in 1 : iter){
+
+	# Covariate
+		X_1 = rnorm(n_sample, 0, 1)
+		X_2 = rbinom(n_sample, 1, 0.5)
+		X3[[i]] = cbind(X_1, X_2)
+		
+	#True logT
+		Eps_true3[[i]] = rnorm(n_sample, mean = 0, sd = 1)
+#		Eps_true3[[i]] = Eps_true3[[i]] - mean(Eps_true3[[i]])
+
+	   design.X = cbind(1, X3[[i]])
+		logT3[[i]] = (design.X %*% beta_true) + Eps_true3[[i]]
+
+}
+#par(mfrow = c(1,2))
+hist(Eps_true3[[1]])
+
+
+
+####################################
+### Results #######################
+###################################
+load(file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models3.Rdata")
+load(file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models3.Rdata")
+
+
+normal3 = list()     ; beta_normal3 = list()
+lts3 = list()	   ; beta_lts3 = list()
+M3 = list() ; beta_M3 = list()
+skewnormal3 = list() ; beta_skewnormal3 = list()
+NSNSM3 = list()      ;  beta_NSNSM3 = list()
+
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X3[[i]]
+	y = logT3[[i]]
+
+	normal3[[i]] = lm(y ~ x)
+	lts3[[i]] = ltsReg(y ~ x, alpha = 0.8)
+	M3[[i]]			= 	rlm(y ~ x, method = "M")
+	skewnormal3[[i]] = AFT_SN(x = x, y = y)
+	NSNSM3[[i]] = AFT_NSNSM(x, y, simulation_index = i)
+
+	beta_normal3[[i]]  = normal3[[i]]$coefficients %>% unname()
+	beta_lts3[[i]]  = lts3[[i]]$coefficients %>% unname()
+	beta_M3[[i]] = M3[[i]]$coefficients %>% unname()
+	beta_skewnormal3[[i]]  = skewnormal3[[i]][[1]]
+	beta_NSNSM3[[i]]  = NSNSM3[[i]][[1]]
+
+	print(i)
+}
+
+save(normal3, lts3, M3, skewnormal3, NSNSM3, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models3.Rdata")
+save(beta_normal3, beta_lts3, beta_M3, beta_skewnormal3, beta_NSNSM3, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models3.Rdata")
+
+## epsilon plot
+density_ssnsm(model = NSNSM3[[130]], true_epsilon = Eps_true3[[130]], ylim = c(0, 0.43),
+					xlab = TeX(r"($\epsilon$)"))
+
+density_norm = dnorm(seq(-20,20,length = 1000), mean = 0, sd = sigma(normal3[[130]]))
+lines(seq(-20,20,length = 1000), density_norm, lwd = 3, lty = 3, col = "black")
+
+legend("topright", legend = c("OLS", "SSNSM"), lty = c(3,1), col = c("black", "red"), cex = 1.5)
+
+
+# NGSM
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/Simulation/n=1000/censoring 0%/NGSM3.Rdata")
+
+NGSM3 = list()
+beta_NGSM3 = list()
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X3[[i]]
+	y = logT3[[i]]
+
+	NGSM3[[i]] = AFT_NGSM(x, y, simulation_index = i)
+
+	beta_NGSM3[[i]]  = NGSM3[[i]][[1]]
+
+	print(i)
+}
+
+save(NGSM3, beta_NGSM3, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/NGSM3.Rdata")
+
+######################################
+#MSE
+beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
+L2_normal3 = beta_hat
+L2_lts3 = beta_hat
+L2_skewnormal3 = beta_hat
+L2_NSNSM3 = beta_hat
+L2_M3 = beta_hat
+
+ 
+for(i in 1 : iter){
+	L2_normal3[i,] = ((beta_true - beta_normal3[[i]])^2)
+	L2_lts3[i,] = ((beta_true - beta_lts3[[i]])^2)
+	L2_skewnormal3[i,] = ((beta_true - beta_skewnormal3[[i]])^2)
+	L2_NSNSM3[i,] = ((beta_true - beta_NSNSM3[[i]])^2)
+	L2_M3[i,] = ((beta_true - beta_M3[[i]])^2)
+
+}
+
+apply(L2_normal3, 2, mean)
+apply(L2_lts3, 2, mean)
+apply(L2_M3, 2, mean)
+apply(L2_skewnormal3, 2, mean)
+apply(L2_NSNSM3, 2, mean)
+
+
+#Bias
+bias_normal3 = beta_hat
+bias_skewnormal3 = beta_hat
+bias_NSNSM3 = beta_hat
+bias_lts3 = beta_hat
+bias_M3 = beta_hat
+for(i in 1 : iter){
+	bias_normal3[i,] = beta_normal3[[i]]
+	bias_lts3[i,] = beta_lts3[[i]]
+	bias_skewnormal3[i,] = beta_skewnormal3[[i]]
+	bias_NSNSM3[i,] = beta_NSNSM3[[i]]
+	bias_lts3[i,] = beta_lts3[[i]]
+	bias_M3[i,] = beta_M3[[i]]
+
+}
+
+apply(bias_normal3,2,mean) - beta_true
+apply(bias_lts3,2,mean) - beta_true
+apply(bias_M3,2,mean) - beta_true
+apply(bias_skewnormal3,2,mean) - beta_true
+apply(bias_NSNSM3,2,mean) - beta_true
+
+
+###########################################################
+######################################################################################
+## Assumption4. logT ~ t(df = 3)
+######################################################################################
+#### Generate Data #################################
+###################################################
+X4 = list()
+logT4 = list()  # True log survival time
+logY4 = list()  # Observed log survival time
+delta4 = list() # delta = 1: observed, delta = 0: censored
+Eps_true4 = list()
+
+set.seed(530)
+for(i in 1 : iter){
+
+	# Covariate
+		X_1 = rnorm(n_sample, 0, 1)
+		X_2 = rbinom(n_sample, 1, 0.5)
+		X4[[i]] = cbind(X_1, X_2)
+		
+	#True logT
+		Eps_true4[[i]] = rt(n_sample, df = 3)
+#		Eps_true4[[i]] = Eps_true4[[i]] - mean(Eps_true4[[i]])
+
+	   design.X = cbind(1, X4[[i]])
+		logT4[[i]] = (design.X %*% beta_true) + Eps_true4[[i]]
+
+}
+#par(mfrow = c(1,2))
+hist(Eps_true4[[1]])
+
+hist(logT4[[1]])
+hist(logY4[[1]])
+
+## censored rate:
+# If tau = 1, censored rate: Q1 = 0.76 ~ Q3 = 0.79
+# If tau = 3, censored rate: Q1 = 0.48 ~ Q3 = 0.52 
+# If tau = 5, censored rate: Q1 = 0.29 ~ Q3 = 0.34 
+censored_rate = NULL
+for(i in 1 : iter){
+	censored_rate[i] = mean(delta4[[i]] == 0)
+}
+summary(censored_rate)   
+
+
+####################################
+### Results #######################
+###################################
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models4.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models4.Rdata")
+
+normal4 = list()     ; beta_normal4 = list()
+lts4 = list()	   ; beta_lts4 = list()
+M4 = list() ; beta_M4 = list()
+skewnormal4 = list() ; beta_skewnormal4 = list()
+NSNSM4 = list()      ;  beta_NSNSM4 = list()
+
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X4[[i]]
+	y = logT4[[i]]
+
+	normal4[[i]] = lm(y ~ x)
+	lts4[[i]] = ltsReg(y ~ x, alpha = 0.8)
+	M4[[i]]			= 	rlm(y ~ x, method = "M")
+	skewnormal4[[i]] = AFT_SN(x = x, y = y)
+	NSNSM4[[i]] = AFT_NSNSM(x, y, simulation_index = i)
+
+	beta_normal4[[i]]  = normal4[[i]]$coefficients %>% unname()
+	beta_lts4[[i]]  = lts4[[i]]$coefficients %>% unname()
+	beta_M4[[i]] = M4[[i]]$coefficients %>% unname()
+	beta_skewnormal4[[i]]  = skewnormal4[[i]][[1]]
+	beta_NSNSM4[[i]]  = NSNSM4[[i]][[1]]
+
+	print(i)
+}
+
+save(normal4, lts4, M4, skewnormal4, NSNSM4, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models4.Rdata")
+save(beta_normal4, beta_lts4, beta_M4, beta_skewnormal4, beta_NSNSM4, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models4.Rdata")
+
+#### epsilon plot
+density_ssnsm(model = NSNSM4[[200]], true_epsilon = Eps_true4[[200]], ylim = c(0, 0.35),
+					xlab = TeX(r"($\epsilon$)"))
+
+density_norm = dnorm(seq(-20,20,length = 1000), mean = 0, sd = sigma(normal4[[200]]))
+lines(seq(-20,20,length = 1000), density_norm, lwd = 3, lty = 3, col = "black")
+
+legend("topright", legend = c("OLS", "SSNSM"), lty = c(3,1), col = c("black", "red"), cex = 1.5)
+
+
+
+
+# NGSM
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/Simulation/n=1000/censoring 0%/NGSM4.Rdata")
+
+NGSM4 = list()
+beta_NGSM4 = list()
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X4[[i]]
+	y = logT4[[i]]
+
+	NGSM4[[i]] = AFT_NGSM(x, y, simulation_index = i)
+
+	beta_NGSM4[[i]]  = NGSM4[[i]][[1]]
+
+	print(i)
+}
+
+save(NGSM4, beta_NGSM4, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/NGSM4.Rdata")
+
+######################################
+#MSE
+beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
+L2_normal4 = beta_hat
+L2_lts4 = beta_hat
+L2_skewnormal4 = beta_hat
+L2_NSNSM4 = beta_hat
+L2_M4 = beta_hat
+
+ 
+for(i in 1 : iter){
+	L2_normal4[i,] = ((beta_true - beta_normal4[[i]])^2)
+	L2_lts4[i,] = ((beta_true - beta_lts4[[i]])^2)
+	L2_skewnormal4[i,] = ((beta_true - beta_skewnormal4[[i]])^2)
+	L2_NSNSM4[i,] = ((beta_true - beta_NSNSM4[[i]])^2)
+	L2_M4[i,] = ((beta_true - beta_M4[[i]])^2)
+
+}
+
+apply(L2_normal4, 2, mean)
+apply(L2_skewnormal4, 2, mean)
+apply(L2_NSNSM4, 2, mean)
+apply(L2_lts4, 2, mean)
+apply(L2_M4, 2, mean)
+
+#Bias
+bias_normal4 = beta_hat
+bias_skewnormal4 = beta_hat
+bias_NSNSM4 = beta_hat
+bias_lts4 = beta_hat
+bias_M4 = beta_hat
+for(i in 1 : iter){
+	bias_normal4[i,] = beta_normal4[[i]]
+	bias_lts4[i,] = beta_lts4[[i]]
+	bias_skewnormal4[i,] = beta_skewnormal4[[i]]
+	bias_NSNSM4[i,] = beta_NSNSM4[[i]]
+	bias_M4[i,] = beta_M4[[i]]
+
+}
+
+apply(bias_normal4,2,mean) - beta_true
+apply(bias_skewnormal4,2,mean) - beta_true
+apply(bias_NSNSM4,2,mean) - beta_true
+apply(bias_lts4,2,mean) - beta_true
+apply(bias_M4,2,mean) - beta_true
+
+
+######################################################################################
+## Assumption5. logT ~ Gumbel(0,1)
+######################################################################################
+#### Generate Data #################################
+###################################################
+X5 = list()
+logT5 = list()  # True log survival time
+logY5 = list()  # Observed log survival time
+delta5 = list() # delta = 1: observed, delta = 0: censored
+Eps_true5 = list()
+Eps_true5_mean = list()
+
+set.seed(5302)
+for(i in 1 : iter){
+	library(evd)
+	# Covariate
+		X_1 = rnorm(n_sample, 0, 1)
+		X_2 = rbinom(n_sample, 1, 0.5)
+		X5[[i]] = cbind(X_1, X_2)
+		
+	#True logT
+		Eps_true5[[i]] = rgumbel(n_sample, loc = 0, scale = 1)
+		Eps_true5_mean[[i]] = mean(Eps_true5[[i]])
+		Eps_true5[[i]] = (Eps_true5[[i]] - mean(Eps_true5[[i]]))/sd(Eps_true5[[i]])
+
+	   design.X = cbind(1, X5[[i]])
+		logT5[[i]] = (design.X %*% beta_true) + Eps_true5[[i]]
+
+}
+#par(mfrow = c(1,2))
+hist(Eps_true5[[1]])
+abline(v = mean(Eps_true5[[1]]), col = "red")
+
+
+####################################
+### Results #######################
+###################################
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models5.Rdata")
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models5.Rdata")
+
+normal5 = list()     ; beta_normal5 = list()
+lts5 = list()	   ; beta_lts5 = list()
+M5 = list() ; beta_M5 = list()
+skewnormal5 = list() ; beta_skewnormal5 = list()
+NSNSM5 = list()      ;  beta_NSNSM5 = list()
+
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X5[[i]]
+	y = logT5[[i]]
+
+	normal5[[i]] = lm(y ~ x)
+	lts5[[i]] = ltsReg(y ~ x, alpha = 0.8)
+	M5[[i]]			= 	rlm(y ~ x, method = "M")
+	skewnormal5[[i]] = AFT_SN(x = x, y = y)
+	NSNSM5[[i]] = AFT_NSNSM(x, y, simulation_index = i)
+
+	beta_normal5[[i]]  = normal5[[i]]$coefficients %>% unname()
+	beta_lts5[[i]]  = lts5[[i]]$coefficients %>% unname()
+	beta_M5[[i]] = M5[[i]]$coefficients %>% unname()
+	beta_skewnormal5[[i]]  = skewnormal5[[i]][[1]]
+	beta_NSNSM5[[i]]  = NSNSM5[[i]][[1]]
+
+	print(i)
+}
+
+save(normal5, lts5, M5, skewnormal5, NSNSM5, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/models5.Rdata")
+save(beta_normal5, beta_lts5, beta_M5, beta_skewnormal5, beta_NSNSM5, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/beta_models5.Rdata")
+
+
+#### epsilon plot
+density_ssnsm(model = NSNSM5[[20]], true_epsilon = Eps_true5[[20]], ylim = c(0, 0.5),
+					xlab = TeX(r"($\epsilon$)"))
+
+density_norm = dnorm(seq(-20,20,length = 1000), mean = 0, sd = sigma(normal5[[20]]))
+lines(seq(-20,20,length = 1000), density_norm, lwd = 3, lty = 3, col = "black")
+
+legend("topright", legend = c("OLS", "SSNSM"), lty = c(3,1), col = c("black", "red"), cex = 1.5)
+
+
+
+# NGSM
+load("C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/Simulation/n=1000/censoring 0%/NGSM5.Rdata")
+
+NGSM5 = list()
+beta_NGSM5 = list()
+
+iter = 200
+for(i in 1 : iter){
+
+	x = X5[[i]]
+	y = logT5[[i]]
+
+	NGSM5[[i]] = AFT_NGSM(x, y, simulation_index = i)
+
+	beta_NGSM5[[i]]  = NGSM5[[i]][[1]]
+
+	print(i)
+}
+
+save(NGSM5, beta_NGSM5, file = "C:/Users/HP/Desktop/3. AFT using NSNSM/Simulation/n=1000/censoring 0_/NGSM5.Rdata")
+
+######################################
+#MSE
+beta_hat = matrix(0, nrow = iter, ncol = length(beta_true))
+L2_normal5 = beta_hat
+L2_lts5 = beta_hat
+L2_skewnormal5 = beta_hat
+L2_NSNSM5 = beta_hat
+L2_M5 = beta_hat
+
+ 
+for(i in 1 : iter){
+	L2_normal5[i,] = ((beta_true - beta_normal5[[i]])^2)
+	L2_lts5[i,] = ((beta_true - beta_lts5[[i]])^2)
+	L2_skewnormal5[i,] = ((beta_true - beta_skewnormal5[[i]])^2)
+	L2_NSNSM5[i,] = ((beta_true - beta_NSNSM5[[i]])^2)
+	L2_M5[i,] = ((beta_true - beta_M5[[i]])^2)
+
+}
+
+apply(L2_normal5, 2, mean)
+apply(L2_lts5, 2, mean)
+apply(L2_M5, 2, mean)
+apply(L2_skewnormal5, 2, mean)
+apply(L2_NSNSM5, 2, mean)
+
+#Bias
+bias_normal5 = beta_hat
+bias_skewnormal5 = beta_hat
+bias_NSNSM5 = beta_hat
+bias_lts5 = beta_hat
+bias_M5 = beta_hat
+
+for(i in 1 : iter){
+	bias_normal5[i,] = beta_normal5[[i]]
+	bias_lts5[i,] = beta_lts5[[i]]
+	bias_skewnormal5[i,] = beta_skewnormal5[[i]]
+	bias_NSNSM5[i,] = beta_NSNSM5[[i]]
+	bias_M5[i,] = beta_M5[[i]]
+
+}
+
+apply(bias_normal5,2,mean) - beta_true
+apply(bias_lts5,2,mean) - beta_true
+apply(bias_M5,2,mean) - beta_true
+apply(bias_skewnormal5,2,mean) - beta_true
+apply(bias_NSNSM5,2,mean) - beta_true
+
+
+
+###########################################################
